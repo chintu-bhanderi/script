@@ -1,0 +1,7 @@
+{
+  "tenant_id": "3",
+  "trade_type": ["export", "Import"],
+  "freight_type": "road",
+  "document_name": "Consignment Note",
+  "document_type": "consignment_note"
+}

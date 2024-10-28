@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      html {
+        background: #fff;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      .page-break {
+        clear: both;
+        page-break-after: always;
+      }
+
+      .form-label {
+        height: 20px;
+        display: flex;
+        align-items: center;
+        padding: 5px;
+      }
+
+      .word-content {
+        padding: 0px 5px;
+        white-space: pre-line;
+        overflow-wrap: break-word;
+        font-size: 10px;
+      }
+
+      .address-content {
+        height: 50px;
+        overflow: hidden;
+      }
+
+      .description-content {
+        height: 30px;
+        overflow: hidden;
+      }
+
+      .smaller-content {
+        height: 15px;
+        overflow: hidden;
+      }
+
+      .section-row {
+        display: flex;
+        width: 100%;
+        border-bottom: 1px solid #b4b1b1;
+      }
+
+      .box-column {
+        flex: 1;
+        border-right: 1px solid #b4b1b1;
+        padding-top: 4pt;
+        padding-bottom: 11pt;
+      }
+
+      .fix-height {
+        height: 95px;
+        font-size: 12px;
+        line-height: normal;
+      }
+
+      .label {
+        font-size: 9pt;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding-left: 6px;
+        color: rgb(85 78 78);
+      }
+
+      .value {
+        font-size: 8pt;
+        padding-left: 6px;
+      }
+
+      .footer {
+        font-size: 10pt;
+        padding: 6px;
+      }
+
+      .page-break-table td {
+        border: 1px solid #b4b1b1;
+        padding: 1px 0;
+      }
+
+      .page-break-table th {
+        border: 1px solid #b4b1b1;
+        border-top: none;
+        padding: 1px 0;
+      }
+
+      .page-break-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .page-break-table tr td:first-child,
+      .page-break-table tr th:first-child {
+        border-left: none;
+      }
+
+      .page-break-table tr td:last-child,
+      .page-break-table tr th:last-child {
+        border-right: none;
+      }
+
+      .letter-head-container {
+        width: 100%;
+      }
+
+      .letter-head-container table {
+        width: 100%;
+        font-size: 9pt;
+      }
+    </style>
+  </head>
+  <script>
+    var shipment_type = "[[shipment_type]]";
+    var shipmentDate = "[[shipment_date]]";
+    var containerSettingsMap = {
+      standard_dry: {
+        "22G0": "20 Standard Dry",
+        "42G0": "40 Standard Dry",
+        "22ODO": "20 One Door Open",
+        "42ODO": "40 One Door Open",
+        "45G0": "40 High Cube",
+        "45U6": "40 High Cube Hard Top",
+        "42U6": "40 Hard Top",
+        L5G0: "45 High Cube",
+      },
+      reefer: {
+        "22R1": "20 Reefer",
+        "45R1": "40 Reefer High Cube",
+      },
+      out_of_dimension: {
+        "22P1": "20 Flat Rack",
+        "22U6": "20 Hard Top",
+        "22U0": "20 Open Top",
+        "29P0": "20 Platform",
+        "22P3": "20 Flat (collapsible)",
+        "42P1": "40 Flat Rack",
+        "42P3": "40 Flat (collapsible)",
+        "4EG0": "40 HC Pallet Wide",
+        "42U0": "40 Open Top",
+        "49P0": "40 Platform",
+        "45P3": "40 Platform High Cube",
+        "45U1": "40 High Cube Open Top",
+      },
+      tank: {
+        "22T3": "20 Tank",
+        "42T3": "40 Tank",
+      },
+      insulated: {
+        "22H0": "20 Insulated",
+        "42H0": "40 Insulated",
+      },
+    };
+    var SHIPMENT_TYPE_DIRECT = "direct";
+    var SHIPMENT_TYPE_CONSOL = "consol";
+    var containerStr = "[[shipment_containers]]";
+    var remarks = "[[remarks]]";
+    var load_type = "[[load_type]]";
+    var linkShipmentJsonStr = "[[link_shipment_json]]";
+    var linkedShipmentStr = "[[linked_shipment]]";
+    var cargoStr = "[[cargos]]";
+    var shipmentDocument = "[[shipment_document]]";
+    var shipment_containers = parseJSON(containerStr, []);
+    var cargos = parseJSON(cargoStr, []);
+    var linkShipmentJson = parseJSON(linkShipmentJsonStr);
+    var portOfDischarge = linkShipmentJson?.port_of_discharge?.name || "";
+    var isMaster = [SHIPMENT_TYPE_DIRECT, SHIPMENT_TYPE_CONSOL].includes(
+      shipment_type
+    );
+    var cargo_description = `[[cargo_description]]`;
+    var routingLegs = parseJSON("[[routing_legs]]");
+    var floatingPointPrecision = +("[[floatingPointPrecision]]" || 3);
+    var carrier = linkShipmentJson?.carrier?.name || "";
+    var shipping_line_booking_number =
+      linkShipmentJson?.ocean_transport_order?.booking_number || "";
+    var booking_validity_date =
+      linkShipmentJson?.ocean_transport_order?.valid_till_date || "";
+    var voyage_number = linkShipmentJson?.voyage_number || "";
+    var ocean_vessel = linkShipmentJson?.ocean_vessel?.name || "";
+    var purchase_order_number = "[[purchase_order_number]]" || "";
+
+    function escapeNewLine(str) {
+      str = str.replace(new RegExp("\\t", "g"), "\\\\t");
+      return str.replace(new RegExp("\\n", "g"), "\\\\n");
+    }
+
+    function getFormattedDateHelper(timestamp) {
+      var date = new Date(timestamp);
+      var day = date.getDate();
+      if (day.toString().length == 1) {
+        day = "0" + day;
+      }
+      var month = date.getMonth() + 1;
+      if (month.toString().length == 1) {
+        month = "0" + month;
+      }
+      var year = date.getFullYear();
+      var formatedDate = day + "/" + month + "/" + year;
+      return formatedDate;
+    }
+
+    function getFormattedDate(timestamp) {
+      if (!timestamp || timestamp === "") return "";
+      return getFormattedDateHelper(timestamp * 1000);
+    }
+
+    function getFormattedDateNew(timestamp) {
+      if (!timestamp || timestamp === "") return "";
+      return getFormattedDateHelper(timestamp);
+    }
+
+    function parseJSON(str, defaultVal = {}) {
+      try {
+        if (str === "") {
+          return defaultVal;
+        }
+        return JSON.parse(escapeNewLine(str));
+      } catch (error) {
+        return defaultVal;
+      }
+    }
+
+    function humanize(str) {
+      return str
+        .replace(new RegExp("^[\\s_]+|[\\s_]+$", "g"), "")
+        .replace(new RegExp("[_\\s]+", "g"), " ")
+        .replace(new RegExp("^[a-z]"), function (m) {
+          return m.toUpperCase();
+        });
+    }
+
+    function getContainerSetting(container) {
+      var container_settings = container.container_settings;
+      var container_type_code = container.container_type_code;
+      var is_reefer = Object.keys(containerSettingsMap.reefer).includes(
+        container_type_code || ""
+      );
+      var is_out_of_dimension = Object.keys(
+        containerSettingsMap.out_of_dimension
+      ).includes(container_type_code || "");
+      let setting = "";
+
+      if (is_reefer && container_settings?.is_active_reefer) {
+        setting = `${container_settings?.temperature || ""}&nbsp;${
+          container_settings?.temperature_unit || ""
+        }`;
+      }
+      return setting;
+    }
+
+    function getContainerHumidity(container) {
+      var container_settings = container.container_settings;
+      var container_type_code = container.container_type_code;
+      var is_reefer = Object.keys(containerSettingsMap.reefer).includes(
+        container_type_code || ""
+      );
+      let setting = "";
+
+      if (is_reefer && container_settings?.is_active_reefer) {
+        setting = `${
+          container_settings?.relative_humidity_percent || ""
+        }&nbsp;${container_settings?.relative_humidity_percent ? "%" : ""}`;
+      }
+      return setting;
+    }
+
+    function getContainerVentilation(container) {
+      var container_settings = container.container_settings;
+      var container_type_code = container.container_type_code;
+      var is_reefer = Object.keys(containerSettingsMap.reefer).includes(
+        container_type_code || ""
+      );
+      let setting = "";
+
+      if (is_reefer && container_settings?.is_active_reefer) {
+        setting = `${container_settings?.air_flow || ""}&nbsp;${humanize(
+          container_settings?.air_flow_unit || ""
+        )}`;
+      }
+      return setting;
+    }
+
+    function getAllContainerSettings(temp, humidity, ventilation) {
+      let setting = "";
+      if (temp) {
+        setting = setting.concat(`Temp. :&nbsp;${temp}, `);
+      }
+      if (humidity) {
+        setting = setting.concat(`Hum. :&nbsp;${humidity}, `);
+      }
+      if (ventilation) {
+        setting = setting.concat(`Vent. :&nbsp;${ventilation}`);
+      }
+      return setting;
+    }
+
+    function getRoutingCompanyName(routingLeg, place = "origin") {
+      if (routingLeg[place]?.company?.registered_name)
+        return `<p class='value'>${routingLeg[place]?.company?.registered_name}</p>`;
+      return "";
+    }
+
+    function getRoutingAddress(routingLeg, place = "origin") {
+      return `<p class='value'>
+        ${
+          routingLeg[place]?.location?.unlocode
+            ? routingLeg[place]?.location?.unlocode + ", "
+            : ""
+        }
+        ${
+          routingLeg[place]?.location?.name
+            ? routingLeg[place]?.location?.name
+            : routingLeg[place]?.address?.name
+            ? routingLeg[place]?.address?.name
+            : ""
+        }
+        </p>`;
+    }
+
+    function getRoutingNodes() {
+      if (routingLegs.length == 0) return "";
+      var firstLeg = routingLegs[0];
+      var lastLeg = routingLegs[routingLegs.length - 1];
+
+      var cols = `
+        <div class='box-column'>
+          <p class='label'>Pickup From</p>
+          ${getRoutingCompanyName(firstLeg)}
+          ${getRoutingAddress(firstLeg)}
+        </div>`;
+
+      for (var i = 1; i < routingLegs.length; i++) {
+        var routingLeg = routingLegs[i];
+        cols += `
+          <div class='box-column'>
+            <p class='label'>Loading Point ${i}</p>
+              ${getRoutingCompanyName(routingLeg)}
+              ${getRoutingAddress(routingLeg)}
+            </div>`;
+      }
+
+      cols += `
+        <div class='box-column' style='border:none'>
+          <p class='label'>Delivery To</p>
+            ${getRoutingCompanyName(lastLeg, "destination")}
+            ${getRoutingAddress(lastLeg, "destination")}
+          </div>`;
+      return cols;
+    }
+
+    function round(n) {
+      return Number(
+        Math.round(n + "e" + floatingPointPrecision) +
+          "e-" +
+          floatingPointPrecision
+      );
+    }
+
+    function getContainerRows(containers) {
+      var rows = "";
+      var weight_unit = "[[weight_unit]]";
+      var totalValue = {
+        gross_weight: 0,
+      };
+      for (var i = 0; i < containers.length; i++) {
+        var container = containers[i];
+        var cargo_detail =
+          container.container_cargo_details.find(function (c) {
+            return c.shipment_id.toString() === "[[shipment_id]]";
+          }) || {};
+
+        if (isMaster) {
+          cargo_detail = container.container_cargo_details.reduce(
+            function (sums, c) {
+              sums.net_weight = sums.net_weight + (c.net_weight || 0);
+              sums.gross_volume = sums.gross_volume + (c.gross_volume || 0);
+              sums.total_number_of_packages =
+                sums.total_number_of_packages +
+                (c.total_number_of_packages || 0);
+              return sums;
+            },
+            {
+              net_weight: 0,
+              gross_volume: 0,
+              total_number_of_packages: 0,
+            }
+          );
+        }
+
+        var VOLUME_UNIT_CBM = "cbm";
+        var volume_unit = VOLUME_UNIT_CBM;
+
+        var gross_weight = container.cargo_gross_weight
+          ? round(container.cargo_gross_weight || 0, 2) + (" " + weight_unit)
+          : 0;
+
+        var net_weight = cargo_detail.net_weight
+          ? round(cargo_detail.net_weight || 0, 2) + (" " + weight_unit)
+          : 0;
+
+        var gross_volume = cargo_detail.gross_volume
+          ? cargo_detail.gross_volume + (" " + volume_unit)
+          : "";
+        var container_settings = getContainerSetting(container);
+        var container_humidity = getContainerHumidity(container);
+        var container_ventilation = getContainerVentilation(container);
+        var all_container_settings = getAllContainerSettings(
+          container_settings,
+          container_humidity,
+          container_ventilation
+        );
+        totalValue.gross_weight =
+          totalValue.gross_weight + container.cargo_gross_weight || 0;
+        var values = [
+          container.container_number || "-",
+          container.container_type || "-",
+          container.carrier_seal_number || "-",
+          container_settings || "-",
+          container.commercial_invoice_number || "-",
+          container.eway_bill_no || "-",
+          gross_weight || "-",
+          net_weight || "-",
+          cargo_detail.total_number_of_packages || "-",
+        ];
+        var cols = "";
+        var cols =
+          `<td style='text-align: left; padding: 5px 0px 5px 5px'>` +
+          values[0] +
+          "</td>";
+        for (var j = 1; j < values.length; j++) {
+          cols = cols + `<td>` + values[j] + "</td>";
+        }
+        rows = rows + `<tr style='font-size:8pt'>` + cols + `</tr>`;
+      }
+      var innitValue = [];
+      var totalPos = 5;
+      for (var j = 0; j < totalPos; j++) {
+        innitValue.push("");
+      }
+      var values = [
+        ...innitValue,
+        "Totals",
+        round(totalValue.gross_weight || 0, 2) + (" " + weight_unit || "mts"),
+      ];
+      var totalCol = "";
+      for (var j = 0; j < values.length; j++) {
+        if (j == totalPos)
+          totalCol =
+            totalCol +
+            `<td style='border: none; text-align: right; padding: 5px 5px 5px 0px; font-weight: bold' class='label'>` +
+            values[j] +
+            "</td>";
+        else
+          totalCol =
+            totalCol + `<td style='border: none'>` + values[j] + "</td>";
+      }
+      rows = rows + `<tr style='font-size:8pt'>` + totalCol + `</tr>`;
+      return rows;
+    }
+
+    function getCargoRows(cargos) {
+      if (!cargos || cargos.length === 0) return;
+      var rows = "";
+      var totalValue = {
+        total_packages: 0,
+        gross_weight: 0,
+        net_weight: 0,
+      };
+      for (var i = 0; i < cargos.length; i++) {
+        var cargo = cargos[i];
+        totalValue.total_packages += cargo?.total_packages || 0;
+        totalValue.gross_weight += cargo?.gross_weight || 0;
+        totalValue.net_weight += cargo?.net_weight || 0;
+        var total_packages = cargo?.total_packages
+          ? round(cargo?.total_packages || 0, 2) +
+            (" x " + cargo?.package_type || "")
+          : "-";
+        var gross_weight = cargo?.gross_weight
+          ? round(cargo?.gross_weight || 0, 2) +
+            (" " + cargo?.weight_unit || "mts")
+          : "-";
+        var received_weight = cargo?.received_weight
+          ? round(cargo?.received_weight || 0, 2) +
+            (" " + cargo?.weight_unit || "mts")
+          : "-";
+        var net_weight = cargo?.net_weight
+          ? round(cargo?.net_weight || 0, 2) +
+            (" " + cargo?.weight_unit || "mts")
+          : "-";
+        var values = [
+          cargo.print_commodity_description ||
+            cargo.commodity_description ||
+            "-",
+          total_packages,
+          gross_weight,
+          net_weight,
+          received_weight,
+          cargo?.eway_bill_no || "-",
+          cargo?.invoice_number || "-",
+          cargo?.batch_number || "-",
+        ];
+        var cols =
+          `<td style='text-align: left; padding: 5px 0px 5px 5px'>` +
+          values[0] +
+          "</td>";
+        for (var j = load_type == "breakbulk" ? 1 : 2; j < values.length; j++) {
+          cols = cols + `<td>` + values[j] + "</td>";
+        }
+        rows = rows + `<tr style='font-size:8pt'>` + cols + `</tr>`;
+      }
+      var values = [
+        "Totals",
+        totalValue.total_packages,
+        round(totalValue?.gross_weight || 0, 2) +
+          (" " + cargos[0]?.weight_unit || "mts"),
+        round(totalValue?.net_weight || 0, 2) +
+          (" " + cargos[0]?.weight_unit || "mts"),
+      ];
+      var totalCol =
+        `<td style='border: none; text-align: right; padding: 5px 5px 5px 0px; font-weight: bold' class='label'>` +
+        values[0] +
+        "</td>";
+      for (var j = load_type == "breakbulk" ? 1 : 2; j < values.length; j++) {
+        totalCol = totalCol + `<td style='border: none'>` + values[j] + "</td>";
+      }
+      rows = rows + `<tr style='font-size:8pt'>` + totalCol + `</tr>`;
+      return rows;
+    }
+
+    function renderContainers() {
+      var containers = shipment_containers;
+      if (!shipment_containers || shipment_containers.length === 0) return;
+      var tableStr = `
+        <table style = 'width: 100%; text-align:center' class='page-break-table'>
+          <tr style='font-size:9pt'>
+            <th style='text-align: left; padding: 5px 0px 5px 5px' class='label'>Container #</th>
+            <th class='label'>Container Type</th>
+            <th class='label'>Seal #</th>
+            <th class='label'>Container Setting</th>
+            <th class='label'>Invoice #</th>
+            <th class='label'>Way Bill #</th>
+            <th class='label'>Gross weight</th>
+            <th class='label'>Net Weight</th>
+            <th class='label'>No. of Packages</th>
+          </tr>`;
+      tableStr += getContainerRows(shipment_containers);
+      tableStr = tableStr + "</table>";
+      return document.write(tableStr);
+    }
+
+    function getPackageStr() {
+      if (load_type == "breakbulk") return `<th class='label'>Packages</th>`;
+      return "";
+    }
+
+    function renderCargos() {
+      if (!cargos || cargos.length === 0) return;
+      var tableStr =
+        `
+        <table style = 'width: 100%; text-align:center' class='page-break-table'>
+          <tr style='font-size:9pt'>
+            <th style='text-align: left; padding: 5px 0px 5px 5px' class='label'>Cargo Description</th>` +
+        getPackageStr() +
+        `<th class='label'>Gross Wt</th>
+            <th class='label'>Net Wt</th>
+            <th class='label'>Received Wt</th>
+            <th class='label'>Way Bill #</th>
+            <th class='label'>Invoice #</th>
+            <th class='label'>Batch #</th>
+          </tr>`;
+      tableStr += getCargoRows(cargos);
+      tableStr = tableStr + "</table>";
+      return document.write(tableStr);
+    }
+
+    function getSignatureImage() {
+      var signatureImage = "[[signature]]";
+      if (!signatureImage) {
+        return "";
+      }
+      return `<p><img height='70px' src='${signatureImage}'/></p>`;
+    }
+
+    function getSignedAuthority() {
+      var signed_authority = "[[default_company_name]]";
+      return signed_authority;
+    }
+
+    function showAuthorisedSignatory() {
+      var final_string =
+        `<p>
+        <span style='text-align:right' class='label'>FOR ` +
+        getSignedAuthority() +
+        `</span>
+      </p>` +
+        getSignatureImage() +
+        `<p>
+        <span style='font-size: 12px; font-weight:normal' class='value'>` +
+        "Authorised Signatory" +
+        `</span>
+      </p>`;
+
+      return final_string;
+    }
+
+    function showFieldByCargoType() {
+      var cargo_type = "[[cargo_type]]";
+      var carrier_name = "[[carrier.name]]";
+      var gross_weight = "[[gross_weight]]";
+      var final_string = "";
+      if (cargo_type === "container") {
+        final_string = `
+        <span>
+          <p class='label'>Shipping Line</p>
+          <p class='value'>${carrier_name}</p>
+        </span>
+      `;
+      } else {
+        final_string = `
+        <span>
+          <p class='label'>Gross Weight</p>
+          <p class='value'>${gross_weight}</p>
+        </span>
+      `;
+      }
+      return final_string;
+    }
+
+    function _startCase(str) {
+      return str
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    function getVehicleType() {
+      var vehicle_category = "[[vehicle_category]]";
+      vehicle_category = _startCase(vehicle_category);
+      return vehicle_category ? `Type - ${vehicle_category}` : "";
+    }
+
+    function getGrossWeight() {
+      var gross_weight = "[[gross_weight]]";
+      var weight_unit = "[[weight_unit]]";
+      var gross_wt_str = "";
+      if (gross_weight) {
+        gross_wt_str = gross_weight + " " + weight_unit;
+      }
+      return gross_wt_str;
+    }
+
+    function showbarcode() {
+      var shipment_number = "[[shipment_number]]";
+      if (!shipment_number) return;
+      JsBarcode("#pod_barcode", shipment_number, {
+        displayValue: false,
+        height: 25,
+        width: 1,
+      });
+    }
+
+    function showBarcodeSvg() {
+      return document.write(`<svg id='pod_barcode'></svg>`);
+    }
+
+    function getInvoiceNumber() {
+      var shipmentInvoices = parseJSON("[[shipment_invoices]]", []);
+      var invoiceNumbers = (shipmentInvoices || [])
+        .map((invoice) => invoice.invoice_number)
+        .join(", ");
+      return invoiceNumbers;
+    }
+
+    function getConsignmentNo() {
+      const shipment_number = "[[shipment_number]]" || "";
+      return shipment_number
+        ? `Consignment Note - ${shipment_number}`
+        : "Consignment Note";
+    }
+
+    function getVesselVoyage() {
+      if (ocean_vessel && voyage_number)
+        return `${ocean_vessel} - ${voyage_number}`;
+      if (ocean_vessel) return ocean_vessel;
+      if (voyage_number) return voyage_number;
+      return "";
+    }
+
+    function getRouteData() {
+      if (load_type == "fcl") {
+        var str =
+          `<div class='box-column'>
+                      <p class='label'>Carrier</p>
+                      <p class='value'>` +
+          carrier +
+          `</p>
+                    </div>
+                    <div class='box-column'>
+                      <p class='label'>Booking / DO #</p>
+                      <p class='value'>` +
+          shipping_line_booking_number +
+          `</p>
+                    </div>
+                    <div class='box-column'>
+                      <p class='label'>Validity Date</p>
+                      <p class='value'>` +
+          getFormattedDateNew(booking_validity_date) +
+          `</p>
+                    </div>
+                    <div class='box-column'>
+                      <p class='label'>Vessel - Voyage</p>
+                      <p class='value'>` +
+          getVesselVoyage() +
+          `</p>
+                    </div>
+                    <div class='box-column' style='border: none'>
+                      <p class='label'>Port Of Discharge</p>
+                      <p class='value'>` +
+          portOfDischarge +
+          `</p>
+                    </div>`;
+        return str;
+      } else {
+        var str =
+          `<div class='box-column'>
+                      <p class='label'>Rake Number</p>
+                      <p class='value'>` +
+          voyage_number +
+          `</p>
+                    </div>
+                    <div class='box-column'>
+                      <p class='label'>Vessel - Voyage</p>
+                      <p class='value'>` +
+          getVesselVoyage() +
+          `</p>
+                    </div>
+                    <div class='box-column' style='border: none'>
+                      <p class='label'>Customer's Reference #</p>
+                      <p class='value'>` +
+          purchase_order_number +
+          `</p>
+                    </div>`;
+        return str;
+      }
+    }
+
+    function renderHTMLString(htmlString) {
+      parsedHtml = htmlString
+        .trim()
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+
+      return parsedHtml;
+    }
+
+    function getDefaultLetterHead() {
+      const letter_head = `[[letter_head.content]]`;
+      return `<div class='letter-head-container border-bottom'>${renderHTMLString(
+        letter_head
+      )}</div>`;
+    }
+
+    function renderTerms() {
+      termsAndConditionsHtml = `[[terms_and_conditions]]`.toString().trim();
+      if (!termsAndConditionsHtml)
+        return document.write(`<td colSpan='5'></td>`);
+      termsAndConditionsHtml = termsAndConditionsHtml
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+
+      return document.write(
+        `<td colspan = '6' >
+            <div style='width: 100%; font-size: 8pt; text-align: justify; padding: 6px'>
+              ${termsAndConditionsHtml}
+            </div>
+          </td>`
+      );
+    }
+  </script>
+
+  <body style="height: auto; width: auto">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/barcodes/JsBarcode.code128.min.js"></script>
+    <div class="page-break">
+      <div
+        style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          border: 1px solid #b4b1b1;
+        "
+      >
+        <!-- Company Letter Head -->
+        <div style="padding: 0.5rem" class="section-row">
+          <script>
+            document.write(getDefaultLetterHead());
+          </script>
+        </div>
+
+        <!-- Title Section -->
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-left: 5px;
+            min-width: 150px;
+            min-height: 30px;
+          "
+          class="section-row"
+        >
+          <b>
+            <span style="font-size: 18px; color: #0a4fca">
+              <script>
+                document.write(getConsignmentNo());
+              </script>
+            </span>
+          </b>
+          <div>
+            <script>
+              showBarcodeSvg();
+            </script>
+            <script>
+              showbarcode();
+            </script>
+          </div>
+        </div>
+
+        <!-- Shipper, Consignee, Transporter Section -->
+        <div class="section-row">
+          <div class="box-column">
+            <p class="label">SHIPPER</p>
+            <pre
+              class="value"
+              style="margin: 0; max-height: 75px; overflow: hidden"
+              class="fix-height"
+            >
+[[shipper_print_address]]</pre
+            >
+          </div>
+
+          <div class="box-column">
+            <p class="label">CONSIGNEE</p>
+            <pre
+              class="value"
+              style="margin: 0; max-height: 75px; overflow: hidden"
+              class="fix-height"
+            >
+              [[consignee_print_address]]
+            </pre>
+          </div>
+
+          <div class="box-column" style="border: none">
+            <p class="label">Transporter</p>
+            <p class="value">[[transporter_name]]</p>
+          </div>
+        </div>
+
+        <!-- Routing Nodes Section -->
+        <div class="section-row">
+          <script>
+            document.write(getRoutingNodes());
+          </script>
+        </div>
+
+        <!-- Vehicle, Driver Section -->
+        <div class="section-row">
+          <div class="box-column">
+            <p class="label">Vehicle Details</p>
+            <p class="value">[[vehicle_license_plate_number]]</p>
+            <p class="value">
+              <script>
+                document.write(getVehicleType());
+              </script>
+            </p>
+          </div>
+
+          <div class="box-column" style="border: none">
+            <p class="label">Driver Details</p>
+            <p class="value">[[driver_name]]</p>
+            <p class="value">[[driver_contact_number]]</p>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <script>
+            document.write(getRouteData());
+          </script>
+        </div>
+
+        <!-- Containers/Cargo Table -->
+        <div class="section-row" style="flex-direction: column">
+          <script>
+            load_type == "fcl" ? renderContainers() : renderCargos();
+          </script>
+        </div>
+
+        <!-- Remark, Issue Section -->
+        <div class="section-row">
+          <div class="box-column">
+            <p class="label">Remarks</p>
+            <p class="value">[[remarks]]</p>
+          </div>
+
+          <div style="flex: 1">
+            <div class="section-row" style="border: none">
+              <div class="box-column" style="border: none">
+                <p class="label">Place of Issue</p>
+                <p class="value">[[place_of_issue]]</p>
+              </div>
+              <div class="box-column" style="border: none">
+                <p class="label">Date of Issue</p>
+                <p class="value">
+                  <script>
+                    document.write(getFormattedDate(shipmentDate));
+                  </script>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sign Section -->
+        <div class="section-row" style="flex-direction: row; border: none">
+          <div
+            style="
+              border-right: 1px solid #b4b1b1;
+              width: 50.05%;
+              height: 150px;
+            "
+          >
+            <p style="padding-top: 4px" class="label">
+              Customer's Sign and Stamp
+            </p>
+          </div>
+          <div
+            style="
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              padding: 4pt;
+              margin-left: auto;
+              text-align: right;
+              font-weight: bold;
+            "
+          >
+            <script>
+              document.write(showAuthorisedSignatory());
+            </script>
+          </div>
+        </div>
+
+        <!-- Terms And Condition -->
+        <div class="section-row" style="flex-direction: row; border: none">
+          <div style="border-top: 1px solid #b4b1b1; width: 100%">
+            <p style="margin: 5px 0px" class="label">Terms &amp; condition</p>
+            <script>
+              renderTerms();
+            </script>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div style="float: left; width: fit-content">Powered by Shipmnts</div>
+        <div
+          style="
+            margin: 0 auto;
+            width: fit-content;
+            font-size: 12pt;
+            font-weight: bold;
+          "
+        >
+          [[copy.copy_name]]
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
